@@ -58,6 +58,14 @@ repository root; export them as absolute paths for the launchers.
 
 ### Data (`data/`)
 
+The training data is hosted in an anonymous Google Drive folder:
+<https://drive.google.com/drive/folders/1pnprTfDkICvcxVKw8MTcb1B6os216gbd>
+
+```bash
+pip install gdown
+gdown --folder "https://drive.google.com/drive/folders/1pnprTfDkICvcxVKw8MTcb1B6os216gbd" -O data/train
+```
+
 | Path | Content | Used by |
 |---|---|---|
 | `data/train/asqa_query_s3_train.json`, `..._val.json` | Query-stage SFT set and validation split | `train/run_query_sft.sh` (`DATA_PATH`) |
