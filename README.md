@@ -16,6 +16,8 @@ All locations are supplied by the caller. No script has a built-in host path.
 data construction/   Teacher data generation, filtering and gold-bundle collection
 train/               SFT data builders and FSDP training for the three stages
 inference/           Range runners for each stage and the evaluation merger
+data/                Training sets and the MedCite test set (see "Data and checkpoints")
+checkpoints/         Fine-tuned Query, Rerank and Summary checkpoints
 seer_config.py       Shared helpers: required-path checks, API selection, lazy imports
 install_env.sh       Installs the pinned Python package overlay (see ENVIRONMENT.md)
 ENVIRONMENT.md       Observed software environment and package versions
@@ -48,6 +50,50 @@ Pass `PKG_ENV` to the launchers afterwards. Details are in `ENVIRONMENT.md`.
 - Hyperparameters (batch size, token budgets, top-k, learning rate, epochs) are exposed as environment variables with defaults in each launcher.
 - Sample ranges are inclusive: `START_IDX`, `END_IDX`.
 - API endpoints come from `OPENAI_BASE_URL` or `PROXY_BASE_URL`. Credentials are `OPENAI_API_KEY` and `PROXY_API_KEY`, kept separate. Native Batch commands also need `API_SUPPORTS_BATCH=1`. Use `run_chat` for endpoints without Batch.
+
+## Data and checkpoints
+
+Entry points for the released data and models. Paths are relative to the
+repository root; export them as absolute paths for the launchers.
+
+### Data (`data/`)
+
+| Path | Content | Used by |
+|---|---|---|
+| `data/train/asqa_query_s3_train.json`, `..._val.json` | Query-stage SFT set and validation split | `train/run_query_sft.sh` (`DATA_PATH`) |
+| `data/train/asqa_r3_rerank_train.json`, `..._val.json` | Rerank-stage SFT set and validation split | `train/run_rerank_sft.sh` (`DATA_PATH`) |
+| `data/train/asqa_s3_summary_train.json`, `..._val.json` | Summary-stage SFT set and validation split | `train/run_summary_sft.sh` (`DATA_PATH`) |
+| `data/medcite/` | MedCite test set | `SRC_JSON` of the inference runners |
+
+The three training files are the outputs of `train/build_*_sft_*.py`, in the
+`{"examples": [...]}` format. The inference runners read the test set as a JSON
+list (or an object with a `data` or `examples` list) of records. Each record
+needs a `question` (or `query`) and its retrieved passages in `docs`.
+
+```bash
+export SRC_JSON=$PWD/data/medcite/<test_file>.json
+export DATA_PATH=$PWD/data/train/asqa_query_s3_train.json
+```
+
+### Checkpoints (`checkpoints/`)
+
+| Path | Stage | Used by |
+|---|---|---|
+| `checkpoints/query/` | Query structuring | `MODEL` in `inference/query_range.sh` |
+| `checkpoints/rerank/` | Evidence reranking | `MODEL` in `inference/run_rerank_range.sh` |
+| `checkpoints/summary/` | Plan and final summary | `MODEL` in `inference/run_summary_range.sh` |
+
+All three are fine-tuned from Qwen3-8B. The inference runners take the
+tokenizer from `BASE_TOKENIZER`, which defaults to `MODEL`. Set it to a local
+Qwen3-8B directory only if a checkpoint directory has no tokenizer files.
+Set `MODEL` to the checkpoint directory of the stage being run:
+
+```bash
+export MODEL=$PWD/checkpoints/query
+export BASE_TOKENIZER=/path/to/Qwen3-8B   # optional
+```
+
+Qwen3-8B and Qwen3-Reranker-4B are not redistributed here.
 
 ## Pipeline
 
